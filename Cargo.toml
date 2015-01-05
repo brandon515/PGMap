@@ -4,10 +4,6 @@ name = "PGMap"
 version = "0.0.1"
 authors = ["Brandon <brandon.haley94@gmail.com>"]
 
-[[bin]]
+[lib]
 
 name = "PGMap"
-
-[dependencies.image]
-
-git = "https://github.com/PistonDevelopers/image.git"
