@@ -1,4 +1,12 @@
 [root]
 name = "PGMap"
 version = "0.0.1"
+dependencies = [
+ "rustc-serialize 0.2.9 (git+https://github.com/rust-lang/rustc-serialize.git)",
+]
+
+[[package]]
+name = "rustc-serialize"
+version = "0.2.9"
+source = "git+https://github.com/rust-lang/rustc-serialize.git#c4e6e0a5e786af6587edeae474f0272f2e414e97"
 
