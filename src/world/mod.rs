@@ -1,16 +1,18 @@
-use std::os;
+pub mod designer;
 use std::vec;
-use std::io::{
-	IoError,
-	File,
-	FileMode,
-	FileAccess,
-
+use std::string::String;
+use std::fs::{
+    File,
+    OpenOptions,
 };
+use std::path::Path;
+use std::error::Error;
+use std::io::prelude::*;
 use std::collections::{
 	HashMap,
-	BTreeMap
+	BTreeMap,
 };
+use std::convert::AsRef;
 use rustc_serialize::json;
 use rustc_serialize::json::{
 	ToJson,
@@ -33,7 +35,7 @@ pub struct World{
 
 impl World{
 
-	/*
+    /*
 	Signature:	new(u32,u32)
 	Purpose: 	Creation of a new empty world object
 	Inputs: 	Two 32 bit integers, the first is the width and the second is the height
@@ -58,30 +60,23 @@ impl World{
 	Inputs:		Path object pointing to the file
 	Outputs:	A world object filled with the data from the file if successful, a String object explaining the error if not
 	*/
-	pub fn from_file(path_to_json_file: Path) -> Result<World, String> {
-		let current_base_directory = match os::getcwd() {
-			Ok(x) 	=>	x,
-			Err(x)	=>	return Err(format!("Could not obtain the current working directory, error: {}", x)),
-		};
+	pub fn from_file(path_to_json_file: &Path) -> Result<World, String> {
+		let current_base_directory = Path::new("./");
 		let final_load_path = current_base_directory.join(path_to_json_file);
 		let file_name = final_load_path.display();
 		//open the file
-		let mut json_file = match File::open_mode(&final_load_path, FileMode::Open, FileAccess::Read){
+		let mut json_file = match File::open(&final_load_path){
 			Ok(f)	=>	f,
-			Err(e)	=>	return Err(format!("File at path {} has an error of the kind {}", file_name, e.desc)),
+			Err(e)	=>	return Err(format!("File at path {} has an error of the kind {}", file_name, e.description())),
 		};
 		//read the contents
-		let json_file_contents = match json_file.read_to_end(){
+        let mut json_string = &mut String::new();
+		match json_file.read_to_string(json_string){
 			Ok(c)	=>	c,
-			Err(e)	=>	return Err(format!("File at path {} was not able to be read, reason: {}", file_name, e.desc)),
-		};
-		//make it into a String object
-		let json_string = match String::from_utf8(json_file_contents){
-			Ok(s)	=>	s,
-			Err(_)	=>	return Err(format!("Vec of u8 from path {} was not able to be converted into a String", file_name)),
+			Err(e)	=>	return Err(format!("File at path {} was not able to be read, reason: {}", file_name, e.description())),
 		};
 		//make it into a JSON enum
-		let json_object = match Json::from_str(json_string.as_slice()){
+		let json_object = match Json::from_str(json_string.as_ref()){
 			Ok(j)	=>	j,
 			Err(_)	=>	return Err(format!("Json file at {} is corrupted", file_name)),
 		};
@@ -167,11 +162,12 @@ impl World{
 						&Json::String(ref val)	=>	val,
 						_						=>	return Err(format!("Json file at path {} at the coordinates ({},{}) is not a String", file_name, x, y)),
 					};
-					let tile_type = match obj_real.as_slice() {
+					let tile_type = match obj_real.as_ref(){
 						"H_WALL" 	=> 	Type::HorizontalWall,
 						"V_WALL"	=>	Type::VerticalWall,
 						"FLOOR"		=>	Type::Floor,
 						"MAIN_CHAR"	=>	Type::MainCharacter,
+                        "DOOR"      =>  Type::Door,
 						tile_str	=>	return Err(format!("Json file at path {} at coordinates ({},{}) is not a valid type, type in tile: {}", file_name, x, y, tile_str)),
 					};
 					z_level.push(WObject{uid:*uid_real as u32, obj:tile_type})
@@ -183,75 +179,22 @@ impl World{
 	}
 
 	/*
-	Signature:	build_room(u32,u32,u32,u32)
-	Purpose:	Place a room that use | and - as walls and . as the Floors, rooms can overlap with their exterior walls staying
-	Inputs:		Four 32 bit integers, the first 2 are the x,y coordinates, the second 2 are width and height respectively.
-	Outputs:	A unit object if successful, a String object explaining the err if not
-	POSSIBLY DEFUNCT
-	*/
-	/*pub fn build_room(&mut self, x: u32, y: u32, w: u32, h: u32) -> Result<(), String>{
-		//Error checking, trying to prevent rooms from stretching beyond 
-		if x+w > self.w{
-			return Err("Right edge of the room goes beyond the edge of the map".to_string());
-		}
-		if y+h > self.h{
-			return Err("Bottom edge of the room goes beyond the edge of the map".to_string());
-		}
-		//double nested loop to iterate over the area of the room, horizontal row by horizontal row
-		for room_y in (y..y+h) {
-			for room_x in (x..x+w) {
-				//this should never happen but I've been biten in the ass by that saying before so let's just account for every possibility
-				let room_z = match self.data.get_mut(&(room_x, room_y)){
-					Some(x) => x,
-					None	=> return Err(format!("No vec in the coordinates ({},{})",room_x,room_y)),
-				};
-				//destroy any existing walls, rooms can intersect but they join together, it would be weird to have the walls of one room in the middle of another
-				room_z.retain(|x| {
-					if x.obj == "|".to_string() || x.obj == "-".to_string(){
-						return false;
-					}
-					true
-				});
-				//this whole section is just to make sure we dont put walls where there shouldn't be any
-				let mut current_cell_is_occupied = false;
-				for x in room_z.iter(){
-					if x.obj == ".".to_string(){
-						current_cell_is_occupied = true;
-						break;
-					}
-				}
-				if current_cell_is_occupied{
-					continue;
-				}
-				//fill the room
-				match (room_x, room_y) {
-					(m_x, _) if m_x == x || m_x == x+w 	=>	room_z.push(WObject{uid:0,obj:"-".to_string()}),
-					(_, m_y) if m_y == y || m_y == y+h 	=>	room_z.push(WObject{uid:0,obj:"|".to_string()}),
-					(_, _) 								=> 	room_z.push(WObject{uid:0,obj:".".to_string()}),
-				}
-			}
-		}
-		//tell everyone it's ok!
-		Ok(())
-	}*/
-
-	/*
 	
 	*/
-	pub fn save(&self, save_path: Path) -> Result<Path, IoError> {
-		let current_base_directory = match os::getcwd() {
-			Ok(x) 	=>	x,
-			Err(x)	=>	return Err(x),
-		};
-		let final_save_path = current_base_directory.join(save_path.clone());
+	pub fn save(&self, save_path: &Path) -> Result<(), Box<Error>> {
+		let current_base_directory = Path::new("./");
+		let final_save_path = current_base_directory.join(save_path);
 		let json_string = json::encode(&self.to_json()).unwrap();
-		let mut json_file = match File::open_mode(&final_save_path, FileMode::Truncate, FileAccess::Write){
+        let mut file_options = OpenOptions::new();
+        file_options.write(true);
+        file_options.truncate(true);
+		let mut json_file = match file_options.open(&final_save_path){
 			Ok(f)	=>	f,
-			Err(e)	=>	return Err(e),
+			Err(e)	=>	return Err(Box::new(e)),
 		};
-		match json_file.write_str(json_string.as_slice()){
-			Ok(_)	=>	Ok(save_path),
-			Err(e)	=>	Err(e),
+		match json_file.write_all(&json_string.into_bytes()){
+			Ok(_)	=>	Ok(()),
+			Err(e)	=>	Err(Box::new(e)),
 		}
 	}
 
@@ -266,17 +209,17 @@ impl World{
 		Ok(self.current_uid-1)
 	}
 
-	pub fn objects_at(&self, x: u32, y: u32) -> Result<vec::Vec<WObject>, String> {
+	pub fn objects_at(&self, x: u32, y: u32) -> Option<vec::Vec<WObject>> {
 		let objs = self.data.get(&(x,y));
 		let mut ret_vec = Vec::new();
 		let z_level = match objs {
 			Some(val)						=>	val,
-			None							=>	return Err(format!("there is no Vector at coordinates ({},{})", x, y)),
+			None							=>	return None,
 		};
 		for x in z_level.iter() {
 			ret_vec.push(x.clone());
 		}
-		Ok(ret_vec)
+		Some(ret_vec)
 	}
 
 	pub fn where_is(&self, uid: u32) -> Option<(u32,u32)> {
@@ -304,14 +247,14 @@ impl World{
 		Err(format!("No object with the uid {} is in the world", uid))
 	}
 
-	pub fn translate(&mut self, delta_x: u32, delta_y: u32, uid: u32) -> Result<(), String>{
+	pub fn translate(&mut self, delta_x: i32, delta_y: i32, uid: u32) -> Result<(), String>{
 		let (former_x, former_y) = match self.where_is(uid){
 			Some(val)	=>	val,
 			None		=>	return Err(format!("No object with the uid {} is in the world during translate where_is search", uid)),
 		};
 		let object_being_moved = self.retrieve(uid).unwrap();
-		let (new_x, new_y) = (former_x+delta_x, former_y+delta_y);
-		let mut latter_vector = self.data.get_mut(&(new_x, new_y)).unwrap();
+		let (new_x, new_y) = (former_x as i32+delta_x, former_y as i32+delta_y);
+		let mut latter_vector = self.data.get_mut(&(new_x as u32, new_y as u32)).unwrap();
 		latter_vector.push(object_being_moved);
 		Ok(())
 	}
@@ -363,7 +306,8 @@ impl ToJson for WObject {
 			Type::HorizontalWall	=>	json_file.insert("obj".to_string(), "H_WALL".to_json()),
     		Type::VerticalWall		=>	json_file.insert("obj".to_string(), "V_WALL".to_json()),
     		Type::Floor				=>	json_file.insert("obj".to_string(), "FLOOR".to_json()),
-    		Type::MainCharacter	=>	json_file.insert("obj".to_string(), "MAIN_CHAR".to_json()),
+    		Type::MainCharacter	    =>	json_file.insert("obj".to_string(), "MAIN_CHAR".to_json()),
+            Type::Door              =>  json_file.insert("obj".to_string(), "DOOR".to_json()),
 		};
 		json_file.to_json()
 	}

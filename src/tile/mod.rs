@@ -4,4 +4,5 @@ pub enum Type {
     VerticalWall,
     Floor,
     MainCharacter,
+    Door,
 }

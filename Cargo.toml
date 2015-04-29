@@ -10,3 +10,6 @@ name = "PGMap"
 
 [dependencies.rustc-serialize]
 git = "https://github.com/rust-lang/rustc-serialize.git"
+
+[dependencies.rand]
+git = "https://github.com/rust-lang/rand.git"

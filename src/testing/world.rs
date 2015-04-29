@@ -1,5 +1,6 @@
 use world::World;
 use tile;
+use std::path::Path;
 #[test]
 fn empty_creation(){
 	let width = 4;
@@ -42,7 +43,8 @@ fn save_load(){
 		Ok(_)	=>	(),
 		Err(x)	=>	panic!("World could not put test object, reason: {}", x),
 	};
-	let save_path = save_world.save(Path::new("test_file")).unwrap();
+    let save_path = Path::new("test_file");
+	save_world.save(save_path).unwrap();
 	let load_world = World::from_file(save_path).unwrap();
 	let mut z_level = load_world.objects_at(x,y).unwrap();
 	assert!(load_world.width() == width, "World width was not saved correctly");
@@ -61,7 +63,7 @@ fn move_destroy(){
 	let final_y = 1;
 	let mut test_world = World::new(width, height).unwrap();
 	let uid = test_world.put(test_object, first_x, first_y).unwrap();
-	test_world.translate(final_x-first_x, final_y-first_y, uid).unwrap();
+	test_world.translate(final_x as i32-first_x as i32, final_y as i32-first_y as i32, uid).unwrap();
 	assert!(test_world.objects_at(final_x, final_y).unwrap().len() == 1, "Object was not translated correctly");
 	test_world.destroy(uid).unwrap();
 	assert!(test_world.objects_at(final_x, final_y).unwrap().len() == 0, "Object was not destroyed");
