@@ -11,11 +11,24 @@ enum Direction{
     Vertical,
 }
 
+//Purpose: creates a horizontal corridor from left to right
 fn create_horizontal_corridor(world: &mut World, starting_x: u32, starting_y: u32, length: u32) -> Result<(),String>{
+    if starting_x+length>world.w{
+        Err(format!("out of bounds at ({},{}) on the x-axis", starting_x+length, starting_y))
+    }
    for x in starting_x..starting_x+length+1{
-        let objects_above = world.objects_at(x, starting_y-1).unwrap();
-        let objects_place = world.objects_at(x, starting_y).unwrap();
-        let objects_below = world.objects_at(x, starting_y+1).unwrap();
+        let objects_above = world.objects_at(x, starting_y-1){
+            Some(x) =>  x,
+            None    =>  return Err(format!("Could not retrieve Vector at ({},{})", x, starting_y-1))
+        };
+        let objects_place = world.objects_at(x, starting_y){
+            Some(x) =>  x,
+            None    =>  return Err(format!("Could not retrieve Vector at ({},{})", x, starting_y))
+        };
+        let objects_below = world.objects_at(x, starting_y+1){
+            Some(x) =>  x,
+            None    =>  return Err(format!("Could not retrieve Vector at ({},{})", x, starting_y+1))
+        };
         if objects_above.len() != 0 ||objects_place.len() != 0 ||objects_below.len() != 0{
             return Err(format!("Overlap at ({},{})",x,starting_y));
         }
@@ -33,14 +46,25 @@ fn create_horizontal_corridor(world: &mut World, starting_x: u32, starting_y: u3
     Ok(())
 }
 
+//Purpose: Creates a vertical corridor starting from the top down
 fn create_vertical_corridor(world: &mut World, starting_x: u32, starting_y: u32, length: u32) -> Result<(),String>{
+    if starting_y+length > world.h{
+        Err(format!("The cooridinates ({},{}) are out of bounds on the y-axis", starting_x, starting_y+length))
+    }
     for y in starting_y..starting_y+length+1{
         let objects_left = match world.objects_at(starting_x-1,y){
             Some(x) =>  x,
-            None    =>  return Err(format!(""))
+            None    =>  return Err(format!("Could not retrieve Vector at ({},{})", starting_x-1, y))
         };
-        let objects_place = world.objects_at(starting_x,y).unwrap();
-        let objects_right = world.objects_at(starting_x+1,y).unwrap();
+        let objects_place = match world.objects_at(starting_x,y){
+            Some(x) =>  x,
+            None    =>  return Err(format!("Could not retrieve Vector at ({},{})", starting_x, y))
+        };
+        let objects_right = match world.objects_at(starting_x+1,y){
+            Some(x) =>  x,
+            None    =>  return Err(format!("Could not retrieve Vector at ({},{})", starting_x+1, y))
+        };
+
         if objects_left.len() != 0 ||objects_place.len() != 0 ||objects_right.len() != 0{
             return Err(format!("Overlap at ({},{})",starting_x,y));
         }
@@ -91,6 +115,9 @@ fn create_rectangle_room(world: &mut World, upper_left_x: u32, upper_left_y: u32
 }
 
 fn create_diamond_room(world: &mut World, center_x: u32, center_y: u32, radius: u32) -> Result<(), String>{
+    if center_x+radius>world.w || center_y+radius>world.h{
+        Err(format!("The diamond room was out of bounds"))
+    }
     for x in center_x-radius..center_x+radius+1{
         //distance away from the center
         let y_delta_i = radius as i32 - (center_x as i32 - x as i32).abs();
@@ -128,5 +155,7 @@ pub fn create_dungeon(world: &mut World){
     let starting_room_x_range = Range::new(1u32, world.w);
     let starting_room_y_range = Range::new(1u32, world.h);
     let mut rng = rand::thread_rng();
-    create_rectangle_room(world,starting_room_x_range.ind_sample(&mut rng), starting_room_y_range.ind_sample(&mut rng),height_width_range.ind_sample(&mut rng), height_width_range.ind_sample(&mut rng)).unwrap();
+    let mut current_x = starting_room_x_range.ind_sample(&mut rng);
+    let mut current_y = starting_room_y_range.ind_sample(&mut rng);
+    create_rectangle_room(world, current_x, current_y, height_width_range.ind_sample(&mut rng), height_width_range.ind_sample(&mut rng)).unwrap();
 }
