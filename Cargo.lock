@@ -3,7 +3,7 @@ name = "PGMap"
 version = "0.0.1"
 dependencies = [
  "rand 0.3.8 (git+https://github.com/rust-lang/rand.git)",
- "rustc-serialize 0.3.13 (git+https://github.com/rust-lang/rustc-serialize.git)",
+ "rustc-serialize 0.3.14 (git+https://github.com/rust-lang/rustc-serialize.git)",
 ]
 
 [[package]]
@@ -14,13 +14,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "rand"
 version = "0.3.8"
-source = "git+https://github.com/rust-lang/rand.git#669fde15c9046961ea8853abdc6d9582642b61e9"
+source = "git+https://github.com/rust-lang/rand.git#f46ce1e8cd5294314cf91e99c1e50f03e24c1040"
 dependencies = [
  "libc 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "rustc-serialize"
-version = "0.3.13"
-source = "git+https://github.com/rust-lang/rustc-serialize.git#6f77e4160c3fbacda34e9e9126996fc8d4493711"
+version = "0.3.14"
+source = "git+https://github.com/rust-lang/rustc-serialize.git#bb395dea75601659a9c70f1fed26812dd8ddb684"
 

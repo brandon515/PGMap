@@ -1,4 +1,5 @@
 use world::World;
+use world::designer;
 use tile;
 use std::path::Path;
 #[test]
@@ -50,6 +51,7 @@ fn save_load(){
 	assert!(load_world.width() == width, "World width was not saved correctly");
 	assert!(load_world.height() == height, "World height was not saved correctly");
 	assert!(z_level.pop().unwrap().obj == test_object.clone(), "World did not have correct test object saved");
+
 }
 
 #[test]

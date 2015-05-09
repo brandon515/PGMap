@@ -3,6 +3,7 @@ use self::rand::distributions::{
     IndependentSample,
     Range
 };
+use self::rand::SeedableRng;
 use world::World;
 use tile::Type;
 
@@ -14,18 +15,18 @@ enum Direction{
 //Purpose: creates a horizontal corridor from left to right
 fn create_horizontal_corridor(world: &mut World, starting_x: u32, starting_y: u32, length: u32) -> Result<(),String>{
     if starting_x+length>world.w{
-        Err(format!("out of bounds at ({},{}) on the x-axis", starting_x+length, starting_y))
+        return Err(format!("out of bounds at ({},{}) on the x-axis", starting_x+length, starting_y))
     }
    for x in starting_x..starting_x+length+1{
-        let objects_above = world.objects_at(x, starting_y-1){
+        let objects_above = match world.objects_at(x, starting_y-1){
             Some(x) =>  x,
             None    =>  return Err(format!("Could not retrieve Vector at ({},{})", x, starting_y-1))
         };
-        let objects_place = world.objects_at(x, starting_y){
+        let objects_place = match world.objects_at(x, starting_y){
             Some(x) =>  x,
             None    =>  return Err(format!("Could not retrieve Vector at ({},{})", x, starting_y))
         };
-        let objects_below = world.objects_at(x, starting_y+1){
+        let objects_below = match world.objects_at(x, starting_y+1){
             Some(x) =>  x,
             None    =>  return Err(format!("Could not retrieve Vector at ({},{})", x, starting_y+1))
         };
@@ -49,7 +50,7 @@ fn create_horizontal_corridor(world: &mut World, starting_x: u32, starting_y: u3
 //Purpose: Creates a vertical corridor starting from the top down
 fn create_vertical_corridor(world: &mut World, starting_x: u32, starting_y: u32, length: u32) -> Result<(),String>{
     if starting_y+length > world.h{
-        Err(format!("The cooridinates ({},{}) are out of bounds on the y-axis", starting_x, starting_y+length))
+        return Err(format!("The cooridinates ({},{}) are out of bounds on the y-axis", starting_x, starting_y+length))
     }
     for y in starting_y..starting_y+length+1{
         let objects_left = match world.objects_at(starting_x-1,y){
@@ -90,20 +91,20 @@ fn create_corridor(world: &mut World, starting_x: u32, starting_y: u32, length: 
 }
 
 fn create_rectangle_room(world: &mut World, upper_left_x: u32, upper_left_y: u32, height: u32, width: u32) -> Result<(), String>{
-    for x in upper_left_x..upper_left_x+width+1{
-        for y in upper_left_y..upper_left_y+height+1{
+    for x in upper_left_x..upper_left_x+width{
+        for y in upper_left_y..upper_left_y+height{
             let objects = world.objects_at(x,y).unwrap();
             if objects.len() != 0{
                 return Err(format!("Overlap at ({},{})",x,y));
             }
         }
     }
-    for x in upper_left_x..upper_left_x+width+1{
-        for y in upper_left_y..upper_left_y+height+1{
-            if x == upper_left_x || x==upper_left_x+width{
+    for x in upper_left_x..upper_left_x+width{
+        for y in upper_left_y..upper_left_y+height{
+            if x == upper_left_x || x==upper_left_x+width-1{
                 world.put(Type::HorizontalWall,x,y).unwrap();
             }
-            else if y == upper_left_y || y == upper_left_y+width{
+            else if y == upper_left_y || y == upper_left_y+width-1{
                 world.put(Type::VerticalWall,x,y).unwrap();
             }
             else{
@@ -116,7 +117,7 @@ fn create_rectangle_room(world: &mut World, upper_left_x: u32, upper_left_y: u32
 
 fn create_diamond_room(world: &mut World, center_x: u32, center_y: u32, radius: u32) -> Result<(), String>{
     if center_x+radius>world.w || center_y+radius>world.h{
-        Err(format!("The diamond room was out of bounds"))
+        return Err(format!("The diamond room was out of bounds"))
     }
     for x in center_x-radius..center_x+radius+1{
         //distance away from the center
@@ -149,13 +150,14 @@ fn create_diamond_room(world: &mut World, center_x: u32, center_y: u32, radius: 
     Ok(())
 }
 
-pub fn create_dungeon(world: &mut World){
+pub fn create_dungeon(world: &mut World, seed: &[usize]){
     let room_generation_range = Range::new(1u32,100);
     let height_width_range = Range::new(1u32, 20);
     let starting_room_x_range = Range::new(1u32, world.w);
     let starting_room_y_range = Range::new(1u32, world.h);
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::StdRng::from_seed(seed);
     let mut current_x = starting_room_x_range.ind_sample(&mut rng);
     let mut current_y = starting_room_y_range.ind_sample(&mut rng);
     create_rectangle_room(world, current_x, current_y, height_width_range.ind_sample(&mut rng), height_width_range.ind_sample(&mut rng)).unwrap();
+
 }
